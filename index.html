@@ -243,7 +243,8 @@
             <p class="subtitle">Enter customer details to generate an order.</p>
         </header>
 
-        <form id="orderForm">
+        <!-- Added novalidate to prevent browser native validation interfering with JS -->
+        <form id="orderForm" novalidate>
             <div class="form-group">
                 <label for="name">Full Name</label>
                 <input type="text" id="name" name="name" placeholder="e.g. John Doe" required>
@@ -288,13 +289,18 @@
     </div>
 
     <script>
+        // Clear URL parameters to prevent form resubmission issues on refresh
+        if (window.location.search) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         // 1. Supabase Configuration
         const SUPABASE_URL = 'https://ouijqobcjwmclrdmtfxf.supabase.co';
         // WARNING: In a real app, use the 'anon' key, not the 'service_role' key.
         const SUPABASE_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91aWpxb2JjandtY2xyZG10ZnhmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc5OTA0MSwiZXhwIjoyMDgzMzc1MDQxfQ';
 
-        // Initialize client
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Initialize client using 'var' to prevent "Identifier already declared" errors on re-run
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // 2. Helper: Generate Random Bill Code
         function generateBillCode() {
@@ -320,6 +326,12 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // Simple validation check
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
             // Reset UI
             statusMsg.style.display = 'none';
             statusMsg.classList.remove('status-error');
@@ -346,7 +358,7 @@
                             email: email,
                             phone: phone,
                             amount: amount,
-                            status: 'pending', // Explicitly setting, though default exists
+                            status: 'pending',
                             bill_code: billCode
                         }
                     ]);
@@ -358,7 +370,7 @@
 
             } catch (err) {
                 console.error('Error:', err);
-                showError('Failed to create order. Please try again.');
+                showError('Failed to create order. ' + err.message);
             } finally {
                 setLoading(false);
             }
