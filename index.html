@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Order - Supabase Integration</title>
+    
+    <!-- Supabase JS Client from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #3ecf8e; /* Supabase Green */
+            --primary-hover: #34b27b;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --error: #e53e3e;
+            --radius: 8px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.2);
+        }
+
+        button.btn-submit {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button.btn-submit:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        button.btn-submit:disabled {
+            background-color: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            text-align: center;
+            display: none;
+        }
+
+        .status-error {
+            background-color: #fff5f5;
+            color: var(--error);
+            border: 1px solid #fed7d7;
+            display: block;
+        }
+
+        /* Loader */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .success-icon {
+            width: 60px;
+            height: 60px;
+            background: #f0fff4;
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem auto;
+            font-size: 2rem;
+        }
+
+        .order-id-box {
+            background: #edf2f7;
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-family: monospace;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            margin: 1rem 0;
+            color: var(--text-main);
+            border: 1px dashed var(--text-muted);
+        }
+
+        .btn-close {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1.5rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-main);
+            transition: all 0.2s;
+        }
+
+        .btn-close:hover {
+            background: #edf2f7;
+        }
+
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <header>
+            <h1>New Order Entry</h1>
+            <p class="subtitle">Enter customer details to generate an order.</p>
+        </header>
+
+        <form id="orderForm">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" placeholder="e.g. John Doe" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="john@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="+1 234 567 8900" required>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Order Amount ($)</label>
+                <input type="number" id="amount" name="amount" placeholder="0.00" min="0" step="0.01" required>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <span class="spinner" id="spinner"></span>
+                <span id="btnText">Create Order</span>
+            </button>
+
+            <div id="statusMsg" class="status-message"></div>
+        </form>
+    </main>
+
+    <!-- Success Modal -->
+    <div class="modal-overlay" id="successModal">
+        <div class="modal">
+            <div class="success-icon">✓</div>
+            <h2>Order Created!</h2>
+            <p class="subtitle">Your order has been successfully saved to the database.</p>
+            
+            <label>Your Order ID (Bill Code):</label>
+            <div class="order-id-box" id="displayBillCode">---</div>
+
+            <button class="btn-close" onclick="resetForm()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Supabase Configuration
+        const SUPABASE_URL = 'https://ouijqobcjwmclrdmtfxf.supabase.co';
+        // WARNING: In a real app, use the 'anon' key, not the 'service_role' key.
+        const SUPABASE_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91aWpxb2JjandtY2xyZG10ZnhmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzc5OTA0MSwiZXhwIjoyMDgzMzc1MDQxfQ';
+
+        // Initialize client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // 2. Helper: Generate Random Bill Code
+        function generateBillCode() {
+            // Generates something like ORD-1A9X-2B4Z
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 1, 0 to avoid confusion
+            let segment = '';
+            for (let i = 0; i < 4; i++) {
+                segment += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return `ORD-${segment}`;
+        }
+
+        // 3. DOM Elements
+        const form = document.getElementById('orderForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const spinner = document.getElementById('spinner');
+        const btnText = document.getElementById('btnText');
+        const statusMsg = document.getElementById('statusMsg');
+        const modal = document.getElementById('successModal');
+        const displayBillCode = document.getElementById('displayBillCode');
+
+        // 4. Form Submission Handler
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Reset UI
+            statusMsg.style.display = 'none';
+            statusMsg.classList.remove('status-error');
+            
+            // Get Values
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            // Set Loading State
+            setLoading(true);
+
+            // Generate Unique ID locally
+            const billCode = generateBillCode();
+
+            try {
+                // Insert into Supabase
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([
+                        {
+                            name: name,
+                            email: email,
+                            phone: phone,
+                            amount: amount,
+                            status: 'pending', // Explicitly setting, though default exists
+                            bill_code: billCode
+                        }
+                    ]);
+
+                if (error) throw error;
+
+                // Success!
+                showSuccessModal(billCode);
+
+            } catch (err) {
+                console.error('Error:', err);
+                showError('Failed to create order. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // 5. UI Helper Functions
+        function setLoading(isLoading) {
+            if (isLoading) {
+                submitBtn.disabled = true;
+                spinner.style.display = 'block';
+                btnText.textContent = 'Processing...';
+            } else {
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.textContent = 'Create Order';
+            }
+        }
+
+        function showError(message) {
+            statusMsg.textContent = message;
+            statusMsg.style.display = 'block';
+            statusMsg.classList.add('status-error');
+        }
+
+        function showSuccessModal(code) {
+            displayBillCode.textContent = code;
+            modal.classList.add('active');
+        }
+
+        function resetForm() {
+            modal.classList.remove('active');
+            form.reset();
+        }
+    </script>
+</body>
+</html>
